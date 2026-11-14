@@ -1,0 +1,215 @@
+// JobHunt — suivi de recherche d'emploi (offres, CV, matching, candidatures, relances)
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OfferSource {
+  MANUAL
+  REDDIT
+  HACKER_NEWS
+  REMOTEOK
+  REMOTIVE
+}
+
+enum OfferStatus {
+  OPEN
+  UNVERIFIED
+  CLOSED
+}
+
+enum ApplicationStatus {
+  TO_APPLY
+  APPLIED
+  INTERVIEW
+  OFFER
+  REJECTED
+  ARCHIVED
+}
+
+enum EventType {
+  CREATED
+  STATUS_CHANGE
+  NOTE
+  FOLLOW_UP_SENT
+}
+
+/// Un CV (Node/React, PHP/Symfony, Cyber…). `skills` est détecté depuis `text`.
+model Cv {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  label           String
+  text            String
+  yearsExperience Float
+  skills          String[]
+  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime      @default(now())
+  matches         Match[]
+  applications    Application[]
+}
+
+model Offer {
+  id                 String       @id @default(cuid())
+  source             OfferSource  @default(MANUAL)
+  externalId         String?
+  url                String
+  company            String
+  title              String
+  location           String       @default("")
+  description        String       @default("")
+  skills             String[]
+  minYears           Int?
+  senior             Boolean      @default(false)
+  /// Poste de développement / data / sécurité (sinon score divisé par deux)
+  devRole            Boolean      @default(true)
+  eligibleFromFrance Boolean      @default(true)
+  /// Langue de travail ("en", "fr"…) ; une autre langue requise exclut le profil
+  language           String       @default("en")
+  otherLanguage      String?
+  status             OfferStatus  @default(OPEN)
+  postedAt           DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  matches            Match[]
+  application        Application?
+
+  @@unique([source, externalId])
+  @@index([createdAt])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  offerId   String
+  cvId      String
+  stackPct  Int
+  globalPct Int
+  covered   String[]
+  missing   String[]
+  updatedAt DateTime @updatedAt
+  offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  cv        Cv       @relation(fields: [cvId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, cvId])
+  @@index([cvId, globalPct])
+}
+
+model Application {
+  id                String             @id @default(cuid())
+  offerId           String             @unique
+  cvId              String?
+  status            ApplicationStatus  @default(TO_APPLY)
+  position          Int                @default(0)
+  appliedAt         DateTime?
+  lastContactAt     DateTime?
+  followUpAfterDays Int                @default(7)
+  contactName       String?
+  contactEmail      String?
+  notes             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  offer             Offer              @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  cv                Cv?                @relation(fields: [cvId], references: [id], onDelete: SetNull)
+  events            ApplicationEvent[]
+
+  @@index([status, position])
+}
+
+model ApplicationEvent {
+  id            String      @id @default(cuid())
+  applicationId String
+  type          EventType
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus?
+  note          String?
+  at            DateTime    @default(now())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, at])
+}
+
+/// Fiche entreprise issue de recherches publiques. `key` = nom normalisé, rapproché de Offer.company.
+model Company {
+  key        String    @id
+  name       String
+  website    String?
+  note       String?
+  sector     String?
+  address    String?
+  country    String?
+  /// Standard ou numéro public de l'entreprise (jamais un numéro personnel)
+  phone      String?
+  /// Adresse générique publiée par l'entreprise (contact@, support@…)
+  email      String?
+  /// Page d'où viennent adresse / téléphone / email
+  infoSource String?
+  updatedAt DateTime  @updatedAt
+  contacts  Contact[]
+}
+
+/// Contact professionnel publié publiquement (dirigeant, RH, tech, ou canal de candidature).
+model Contact {
+  id         String  @id @default(cuid())
+  companyKey String
+  name       String?
+  role       String
+  email      String?
+  url        String?
+  source     String?
+  /// true si confirmé par une source de l'entreprise ou plusieurs sources concordantes
+  verified   Boolean @default(false)
+  company    Company @relation(fields: [companyKey], references: [key], onDelete: Cascade)
+
+  @@index([companyKey])
+}
+
+enum FundingSource {
+  MADDYNESS
+  EU_STARTUPS
+}
+
+enum LeadStatus {
+  NEW
+  TO_CONTACT
+  CONTACTED
+  IGNORED
+}
+
+/// Levée de fonds repérée par la veille : une startup qui vient de lever recrute souvent avant de publier ses offres.
+model FundingRound {
+  id          String        @id @default(cuid())
+  source      FundingSource
+  url         String        @unique
+  title       String
+  company     String
+  /// Montant en millions (devise d'origine, sans conversion)
+  amount      Float?
+  amountLabel String?
+  /// pre-seed, seed, série A…
+  stage       String?
+  country     String?
+  summary     String        @default("")
+  /// Pourquoi la levée a été retenue (SaaS, IA, data…)
+  tags        String[]
+  publishedAt DateTime?
+  status      LeadStatus    @default(NEW)
+  notes       String?
+  createdAt   DateTime      @default(now())
+
+  @@index([status, publishedAt])
+}
+
+model WatchRun {
+  id               String    @id @default(cuid())
+  startedAt        DateTime  @default(now())
+  finishedAt       DateTime?
+  scanned          Int       @default(0)
+  inserted         Int       @default(0)
+  fundingInserted  Int       @default(0)
+  errors           String[]
+}

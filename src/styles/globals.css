@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/*
+ * Thème sombre. Plutôt que de doubler chaque classe (dark:…), on redéfinit les teintes
+ * utilisées par l'appli : l'échelle zinc est inversée (50 = fond, 900 = texte) et les
+ * teintes pâles (-50, -200, -700) des badges deviennent des fonds sombres + textes clairs.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  --color-surface: #1a1a22;
+
+  --color-zinc-50: #121218;
+  --color-zinc-100: #26262f;
+  --color-zinc-200: #2e2e38;
+  --color-zinc-300: #3c3c48;
+  --color-zinc-400: #70707e;
+  --color-zinc-500: #9d9daa;
+  --color-zinc-600: #b6b6c2;
+  --color-zinc-700: #d0d0d9;
+  --color-zinc-800: #e4e4ea;
+  --color-zinc-900: #f3f3f6;
+
+  --color-indigo-50: #1f1c3d;
+  --color-indigo-200: #3b3591;
+  --color-indigo-700: #b4bcfd;
+  --color-violet-50: #2a1f47;
+  --color-violet-700: #c9b8fe;
+  --color-emerald-50: #10291e;
+  --color-emerald-200: #1f5a3f;
+  --color-emerald-700: #74e4ab;
+  --color-rose-50: #33151b;
+  --color-rose-200: #6d2733;
+  --color-rose-600: #fb7185;
+  --color-rose-700: #fda4af;
+  --color-amber-50: #33260b;
+  --color-amber-200: #6b4f12;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+}
+
+:root {
+  color-scheme: dark;
+}

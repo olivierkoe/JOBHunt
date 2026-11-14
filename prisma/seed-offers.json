@@ -1,0 +1,30 @@
+[
+ {
+  "url": "https://job-boards.eu.greenhouse.io/whitetech/jobs/4820101101",
+  "company": "WhiteTech",
+  "title": "PHP Developer – SEON, Anti-Fraud",
+  "location": "Europe",
+  "description": "Stack: PHP, SQL, Symfony. Experience: 3 years"
+ },
+ {
+  "url": "https://job-boards.greenhouse.io/whitetech/jobs/4862144101",
+  "company": "WhiteTech",
+  "title": "PHP Developer, DDD",
+  "location": "Europe",
+  "description": "Stack: PHP, Symfony, PostgreSQL, SQL, Docker, Jenkins, Kubernetes, Microservices, DDD. Experience: 3 years"
+ },
+ {
+  "url": "https://jobs.lever.co/swapcard/8a5880bf-600f-4dfe-ab0e-92d8e7392a0b",
+  "company": "Swapcard",
+  "title": "Application Security Engineer",
+  "location": "Remote-first Europe",
+  "description": "Stack: OWASP Top 10, SSRF / IDOR, Burp Suite, Pentest, Bug bounty / CTF, SAST / DAST, Revue de code sécurité, GitLab CI, Terraform / Helm, WAF"
+ },
+ {
+  "url": "https://remotive.com/remote/jobs/all-others/security-engineer-6328243",
+  "company": "RMG Talent",
+  "title": "Security Engineer (AppSec / GRC / AI Security)",
+  "location": "Europe, ~80 % recouvrement CET, B2B",
+  "description": "Stack: Revue de code sécurité, Gestion des vulnérabilités, Git / GitHub, Pentest, GRC / analyse de risques, LLM / IA"
+ }
+]

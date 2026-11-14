@@ -1,0 +1,28 @@
+[
+  {
+    "company": "Exemple SAS",
+    "website": "https://example.com",
+    "sector": "Éditeur SaaS",
+    "address": "1 rue de l'Exemple, 34000 Montpellier",
+    "country": "France",
+    "phone": "04 00 00 00 00",
+    "email": "contact@example.com",
+    "infoSource": "https://example.com/mentions-legales",
+    "note": "Entreprise fictive : copie ce fichier en contacts.json et remplis-le avec tes propres recherches.",
+    "contacts": [
+      {
+        "role": "Candidature",
+        "email": "jobs@example.com",
+        "url": "https://example.com/jobs",
+        "source": "Page carrières",
+        "verified": true
+      },
+      {
+        "role": "CTO",
+        "name": "Prénom Nom",
+        "source": "https://example.com/equipe",
+        "verified": false
+      }
+    ]
+  }
+]
