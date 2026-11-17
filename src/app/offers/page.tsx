@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { stacksOf } from "~/lib/watch/filter";
 import { api } from "~/trpc/react";
 import { useCvColors } from "../_components/use-cv-colors";
 import { Button, Card, Chip, CvDot, OfferLink, SOURCE_LABEL, inputCls, scoreColor } from "../_components/ui";
@@ -100,6 +101,9 @@ export default function OffersPage() {
                         📍 {o.location || "lieu non précisé"}
                       </span>
                       <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">{SOURCE_LABEL[o.source]}</span>
+                      {stacksOf(o.skills).map((s) => (
+                        <span key={s} className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700">{s}</span>
+                      ))}
                       {!o.devRole && <span className="rounded bg-rose-50 px-1.5 py-0.5 text-rose-700">Hors dev</span>}
                     </div>
                     <OfferLink url={o.url} className="mt-1.5" />

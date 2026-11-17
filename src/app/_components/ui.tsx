@@ -271,6 +271,10 @@ export const SOURCE_LABEL = {
   HACKER_NEWS: "Hacker News",
   REMOTEOK: "RemoteOK",
   REMOTIVE: "Remotive",
+  FRANCE_TRAVAIL: "France Travail",
+  GOOGLE_JOBS: "Google Jobs",
+  ADZUNA: "Adzuna",
+  JOOBLE: "Jooble",
 } as const;
 
 export const fmtDate = (d: Date | string | null | undefined) =>

@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { createCaller } from "~/server/api/root";
 import { db } from "~/server/db";
-import { runWatch } from "~/server/services/watch";
+import { purgeStaleOffers, runWatch } from "~/server/services/watch";
 
 const run = process.env.INTEGRATION === "1";
 
@@ -94,5 +94,24 @@ describe.skipIf(!run)("intégration tRPC + Prisma", () => {
     expect(second.inserted).toBe(0);
     const ok = await db.offer.findFirstOrThrow({ where: { externalId: "it-ok" }, include: { matches: true } });
     expect(ok.matches).toHaveLength(3);
+  });
+
+  it("purge : supprime les offres de la veille de plus d'une semaine sans candidature", async () => {
+    const old = new Date(Date.now() - 10 * 86_400_000);
+    const mk = (externalId: string, source: "REMOTIVE" | "MANUAL", postedAt: Date | null, createdAt?: Date) =>
+      db.offer.create({ data: { source, externalId, url: `https://x/${externalId}`, company: "Purge", title: "React dev", skills: ["React"], postedAt, createdAt } });
+    const stale = await mk("it-stale", "REMOTIVE", old);
+    const staleNoDate = await mk("it-stale-nodate", "REMOTIVE", null, old);
+    const fresh = await mk("it-fresh", "REMOTIVE", new Date());
+    const applied = await mk("it-applied", "REMOTIVE", old);
+    const manual = await mk("it-manual", "MANUAL", old);
+    created.push(applied.id, manual.id, fresh.id);
+    await api.application.createFromOffer({ offerId: applied.id });
+
+    expect(await purgeStaleOffers(db)).toBeGreaterThanOrEqual(2);
+    const left = (await db.offer.findMany({ where: { company: "Purge" }, select: { id: true } })).map((o) => o.id);
+    expect(left).not.toContain(stale.id);
+    expect(left).not.toContain(staleNoDate.id);
+    expect(left).toEqual(expect.arrayContaining([fresh.id, applied.id, manual.id]));
   });
 });

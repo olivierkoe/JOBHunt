@@ -16,6 +16,11 @@ enum OfferSource {
   HACKER_NEWS
   REMOTEOK
   REMOTIVE
+  FRANCE_TRAVAIL
+  /// Google Jobs via SerpAPI : agrège LinkedIn, Indeed, Welcome to the Jungle…
+  GOOGLE_JOBS
+  ADZUNA
+  JOOBLE
 }
 
 enum OfferStatus {

@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { detectMinYears, detectSkills, isDevRole, isSenior } from "../skills";
 import { experienceFit, scoreMatch } from "../matching";
 import { followUpMessage, isDue, nextFollowUp } from "../reminders";
-import { enrich, keep } from "../watch/filter";
-import { parseHnThread, parseRedditAtom, parseRemotive } from "../watch/sources";
+import { enrich, keep, STACK_SKILLS, stacksOf } from "../watch/filter";
+import { parseAdzuna, parseFranceTravail, parseGoogleJobs, parseJooble, parseRelativeDate } from "../watch/aggregators";
+import { parseHnThread, parseRedditAtom, parseRedditListing, parseRemotive, SOURCES } from "../watch/sources";
 import { cleanCompany, enrichRound, keepRound, parseAmount, parseEuStartups, parseMaddyness } from "../watch/funding";
 import { outreachMessage } from "../outreach";
 
@@ -158,6 +159,69 @@ describe("veille", () => {
     const r = parseRedditAtom(xml, "remotejs");
     expect(r).toHaveLength(1);
     expect(r[0]).toMatchObject({ externalId: "t3_a", title: "TypeScript dev, Remote EU", description: "React + Node, Europe" });
+  });
+  it("lit le sous-reddit de chaque post d'une recherche Atom", () => {
+    const xml = `<feed><entry><category term="PHPjobs" label="r/PHPjobs"/><id>t3_c</id><title>[HIRING] - Symfony developer</title><link href="https://reddit.com/c"/></entry></feed>`;
+    expect(parseRedditAtom(xml, "forhire")[0]).toMatchObject({ company: "r/PHPjobs", title: "Symfony developer" });
+  });
+  it("parse la réponse JSON de l'API Reddit et ignore les [For Hire]", () => {
+    const r = parseRedditListing({
+      data: {
+        children: [
+          { data: { name: "t3_x", title: "[Hiring] NestJS dev", selftext: "NestJS + Angular, remote EU", permalink: "/r/forhire/comments/x/", subreddit: "forhire", created_utc: 1_763_000_000 } },
+          { data: { name: "t3_y", title: "React dev available", permalink: "/r/forhire/comments/y/", subreddit: "forhire", link_flair_text: "For Hire" } },
+        ],
+      },
+    });
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ externalId: "t3_x", url: "https://www.reddit.com/r/forhire/comments/x/", company: "r/forhire", title: "NestJS dev" });
+  });
+  it("veille Reddit : passe par l'API OAuth quand les identifiants sont fournis", async () => {
+    const calls: string[] = [];
+    const fetcher = async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      if (url.includes("access_token")) return new Response(JSON.stringify({ access_token: "tok" }));
+      expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer tok");
+      return new Response(JSON.stringify({ data: { children: [] } }));
+    };
+    await SOURCES.reddit(fetcher, ["forhire", "PHPjobs"], ["php OR symfony"], { clientId: "id", clientSecret: "s" });
+    expect(calls[0]).toBe("POST https://www.reddit.com/api/v1/access_token");
+    expect(calls[1]).toContain("https://oauth.reddit.com/r/forhire+PHPjobs/search?q=php%20OR%20symfony&restrict_sr=1&sort=new");
+  });
+  it("stacks : étiquette les offres PHP/Symfony et NestJS/React/Angular", () => {
+    expect(stacksOf(["PHP", "Docker"])).toEqual(["PHP/Symfony"]);
+    expect(stacksOf(["Symfony", "React"])).toEqual(["PHP/Symfony", "Node/NestJS/React/Angular"]);
+    expect(stacksOf(["Node.js"])).toEqual(["Node/NestJS/React/Angular"]);
+    expect(stacksOf(["Python"])).toEqual([]);
+    const cfg = { wantedSkills: STACK_SKILLS, excludeSenior: true };
+    const base = { source: "REDDIT" as const, externalId: "1", url: "u", company: "c", location: "", postedAt: null };
+    expect(keep(enrich({ ...base, title: "Angular developer", description: "remote" }), cfg)).toBe(true);
+    expect(keep(enrich({ ...base, title: "Python developer", description: "Django, Docker" }), cfg)).toBe(false);
+  });
+  it("parse les agrégateurs France Travail, Google Jobs, Adzuna et Jooble", () => {
+    const ft = parseFranceTravail({ resultats: [{ id: "123ABC", intitule: "Développeur PHP Symfony (H/F)", description: "Symfony 6", dateCreation: "2026-11-15T10:00:00.000Z", lieuTravail: { libelle: "34 - MONTPELLIER" }, entreprise: { nom: "Acme" } }] });
+    expect(ft[0]).toMatchObject({ source: "FRANCE_TRAVAIL", externalId: "123ABC", company: "Acme", location: "34 - MONTPELLIER", url: "https://candidat.francetravail.fr/offres/recherche/detail/123ABC" });
+
+    const now = new Date("2026-11-17T12:00:00Z");
+    const g = parseGoogleJobs({ jobs_results: [{ job_id: "abc", title: "Développeur React", company_name: "Beta", location: "Paris", via: "via LinkedIn", apply_options: [{ title: "LinkedIn", link: "https://www.linkedin.com/jobs/view/1" }], detected_extensions: { posted_at: "il y a 3 jours", work_from_home: true } }] }, now);
+    expect(g[0]).toMatchObject({ url: "https://www.linkedin.com/jobs/view/1", location: "Paris (télétravail)", postedAt: new Date("2026-11-14T12:00:00Z") });
+    expect(parseRelativeDate("5 hours ago", now)).toEqual(new Date("2026-11-17T07:00:00Z"));
+
+    const a = parseAdzuna({ results: [{ id: 9, title: "<strong>Node</strong> developer", redirect_url: "https://adzuna.fr/9", company: { display_name: "Gamma" }, location: { display_name: "Lyon, Rhône" }, created: "2026-11-16T00:00:00Z" }] });
+    expect(a[0]).toMatchObject({ externalId: "9", title: "Node developer", company: "Gamma" });
+
+    const j = parseJooble({ jobs: [{ id: 7, title: "Angular dev", link: "https://jooble.org/7", company: "Delta", location: "Montpellier", snippet: "Angular 17", source: "indeed.fr", updated: "pas une date" }] });
+    expect(j[0]).toMatchObject({ externalId: "7", description: "indeed.fr. Angular 17", postedAt: null });
+  });
+  it("agrégateurs : garde le télétravail complet et la zone, rejette le sur site ailleurs", () => {
+    const base = { source: "ADZUNA" as const, externalId: "1", url: "u", company: "c", postedAt: null, title: "Développeur PHP" };
+    const zone = ["montpellier", "34"];
+    expect(enrich({ ...base, location: "Lyon", description: "Symfony, sur site" }, zone).eligibleFromFrance).toBe(false);
+    expect(enrich({ ...base, location: "Lyon", description: "Symfony, télétravail partiel" }, zone).eligibleFromFrance).toBe(false);
+    expect(enrich({ ...base, location: "Lyon", description: "Symfony, 100% télétravail" }, zone).eligibleFromFrance).toBe(true);
+    expect(enrich({ ...base, location: "Paris (télétravail)", description: "Symfony" }, zone).eligibleFromFrance).toBe(true);
+    expect(enrich({ ...base, location: "34 - MONTPELLIER", description: "Symfony, hybride" }, zone).eligibleFromFrance).toBe(true);
+    expect(enrich({ ...base, location: "34 - MONTPELLIER", description: "Symfony" }).eligibleFromFrance).toBe(false);
   });
   it("parse un commentaire HN au format Company | Role | Location", () => {
     const r = parseHnThread({ id: 1, children: [{ id: 42, text: "Acme | Fullstack Engineer (TypeScript) | REMOTE (EU) | Full-time" }, { id: 43, text: null }] });
